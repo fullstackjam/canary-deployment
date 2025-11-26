@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -17,6 +19,7 @@ import (
 var (
 	version   = "1.1.1"
 	startTime = time.Now()
+	errorRate = 0 // percentage of requests that return 500
 
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -29,6 +32,10 @@ var (
 
 func init() {
 	prometheus.MustRegister(httpRequestsTotal)
+	if rate, err := strconv.Atoi(os.Getenv("ERROR_RATE")); err == nil {
+		errorRate = rate
+		log.Printf("Error rate set to %d%%", errorRate)
+	}
 }
 
 type Response struct {
@@ -66,6 +73,12 @@ func main() {
 
 func metricsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Simulate errors based on ERROR_RATE
+		if errorRate > 0 && rand.Intn(100) < errorRate {
+			httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, "500").Inc()
+			http.Error(w, `{"error":"simulated error"}`, http.StatusInternalServerError)
+			return
+		}
 		next(w, r)
 		httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, "200").Inc()
 	}

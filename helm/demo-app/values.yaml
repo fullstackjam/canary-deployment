@@ -8,6 +8,9 @@ service:
   port: 80
   targetPort: 9898
 
+# Set to 50 to simulate 50% error rate (for testing canary rollback)
+errorRate: 50
+
 resources:
   requests:
     cpu: 100m
