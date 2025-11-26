@@ -18,7 +18,7 @@ spec:
         address: http://prometheus-server.monitoring.svc.cluster.local:80
         query: |
           (
-            sum(rate(http_requests_total{status!~"5.*", app="{{ include "demo-app.fullname" . }}"}[1m])) 
+            sum(rate(http_requests_total{status!~"5.*", app_kubernetes_io_instance="{{ include "demo-app.fullname" . }}"}[1m])) 
             / 
-            (sum(rate(http_requests_total{app="{{ include "demo-app.fullname" . }}"}[1m])) > 0)
+            (sum(rate(http_requests_total{app_kubernetes_io_instance="{{ include "demo-app.fullname" . }}"}[1m])) > 0)
           ) or vector(1)

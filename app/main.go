@@ -10,12 +10,26 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
 	version   = "1.1.1"
 	startTime = time.Now()
+
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "path", "status"},
+	)
 )
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal)
+}
 
 type Response struct {
 	Hostname  string            `json:"hostname"`
@@ -35,10 +49,11 @@ type HealthResponse struct {
 func main() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", homeHandler).Methods("GET")
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	r.HandleFunc("/", metricsMiddleware(homeHandler)).Methods("GET")
 	r.HandleFunc("/healthz", healthHandler).Methods("GET")
 	r.HandleFunc("/readyz", healthHandler).Methods("GET")
-	r.HandleFunc("/version", versionHandler).Methods("GET")
+	r.HandleFunc("/version", metricsMiddleware(versionHandler)).Methods("GET")
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -47,6 +62,13 @@ func main() {
 
 	log.Printf("Starting server on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
+}
+
+func metricsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		next(w, r)
+		httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, "200").Inc()
+	}
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
