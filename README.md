@@ -111,37 +111,47 @@ The demo app uses Argo Rollouts for progressive canary deployment with automatic
 | Step | Weight | Action |
 |------|--------|--------|
 | 1 | 20% | Pause 60s |
-| 2 | 20% | **Analysis** (success rate check) |
-| 3 | 40% | Pause 60s |
-| 4 | 40% | **Analysis** |
-| 5 | 60% | Pause 60s |
-| 6 | 60% | **Analysis** |
-| 7 | 80% | Pause 60s |
-| 8 | 80% | **Analysis** |
-| 9 | 100% | Promote to stable |
+| 2 | 40% | Pause 60s |
+| 3 | 60% | Pause 60s |
+| 4 | 80% | Pause 60s |
+| 5 | 100% | Promote to stable |
+
+Background analysis runs continuously throughout the deployment, checking success rate every minute.
 
 ### Analysis Template
 
 The analysis uses Prometheus to check the success rate:
 - **Metric**: HTTP request success rate (non-5xx / total)
 - **Threshold**: >= 99% success rate
-- **Count**: 5 checks with 1-minute intervals
-- **Failure Limit**: 3 (rollback if exceeded)
+- **Interval**: 1 minute
+- **Failure Limit**: 2 (rollback if exceeded)
 
-If no traffic is present, the analysis returns success by default.
+If no traffic is present, the analysis returns success by default (`or vector(1)`).
 
 Traffic splitting is managed through Gateway API HTTPRoute.
+
+### Testing Canary Rollback
+
+The demo app supports fault injection via `errorRate` value:
+
+```bash
+# Set errorRate to 50 in helm/demo-app/values.yaml to simulate 50% errors
+# This will trigger analysis failure and automatic rollback
+
+# Generate traffic to trigger the analysis
+while true; do curl -s http://demo-app.local; sleep 0.5; done
+```
 
 ## Features
 
 - ✅ GitOps with ArgoCD
 - ✅ Automated canary deployments with Argo Rollouts
-- ✅ Prometheus-based analysis for automatic rollback
+- ✅ Prometheus metrics & analysis for automatic rollback
 - ✅ Traffic management with Gateway API
 - ✅ Traefik as Gateway controller with Dashboard
 - ✅ ArgoCD Rollout Extension for UI visualization
 - ✅ Image tag set to Git commit SHA
-- ✅ Domain-based access (argocd.local, traefik.local, demo-app.example.com)
+- ✅ Fault injection for testing rollback (`errorRate`)
 
 ## Useful Commands
 
@@ -230,6 +240,7 @@ kubectl describe analysisrun <name> -n demo-app
 Common issues:
 - **No traffic**: Analysis requires traffic to calculate success rate. Send requests during deployment.
 - **Prometheus not reachable**: Check Prometheus service is running in monitoring namespace.
+- **No metrics**: Ensure the app exposes `/metrics` endpoint and has `prometheus.io/scrape: "true"` annotation.
 
 ### Skip analysis and promote manually
 
