@@ -1,0 +1,17 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/fullstackjam/canary-deployment
+  tag: ""
+
+service:
+  port: 80
+  targetPort: 9898
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "demo-app.fullname" . }}
+  labels:
+    {{- include "demo-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "demo-app.selectorLabels" . | nindent 6 }}
+  strategy:
+    canary:
+      canaryService: {{ include "demo-app.fullname" . }}-canary
+      stableService: {{ include "demo-app.fullname" . }}
+      trafficRouting:
+        plugins:
+          argoproj-labs/gatewayAPI:
+            httpRoute: {{ include "demo-app.fullname" . }}
+            namespace: demo-app
+      analysis:
+        templates:
+        - templateName: {{ include "demo-app.fullname" . }}-success-rate
+        args:
+        - name: service-name
+          value: {{ include "demo-app.fullname" . }}-canary
+      steps:
+        - setWeight: 20
+        - pause: {duration: 60s}
+        - setWeight: 40
+        - pause: {duration: 60s}
+        - setWeight: 60
+        - pause: {duration: 60s}
+        - setWeight: 80
+        - pause: {duration: 60s}
+  template:
+    metadata:
+      labels:
+        {{- include "demo-app.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

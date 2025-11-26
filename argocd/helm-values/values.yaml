@@ -1,0 +1,31 @@
+server:
+  service:
+    type: ClusterIP
+  extensions:
+    enabled: true
+    extensionList:
+      - name: rollout-extension
+        env:
+          - name: EXTENSION_URL
+            value: https://github.com/argoproj-labs/rollout-extension/releases/download/v0.3.7/extension.tar
+
+configs:
+  params:
+    server.insecure: true
+
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: argocd
+      namespace: argocd
+    spec:
+      parentRefs:
+        - name: traefik-gateway
+          namespace: traefik-system
+      hostnames:
+        - argocd.local
+      rules:
+        - backendRefs:
+            - name: argocd-server
+              port: 80

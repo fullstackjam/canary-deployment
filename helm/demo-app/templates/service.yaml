@@ -1,0 +1,18 @@
+{{- $fullname := include "demo-app.fullname" . -}}
+{{- range $suffix := list "" "-canary" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}{{ $suffix }}
+  labels:
+    {{- include "demo-app.labels" $ | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $.Values.service.port }}
+      targetPort: {{ $.Values.service.targetPort }}
+      name: http
+  selector:
+    {{- include "demo-app.selectorLabels" $ | nindent 4 }}
+{{- end }}
